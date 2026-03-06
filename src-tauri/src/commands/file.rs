@@ -66,15 +66,17 @@ pub fn open_file(path: String) -> FileCommandResult<FilePayload> {
 
 #[tauri::command]
 pub fn save_file(path: String, content: String) -> FileCommandResult<String> {
-    let path_buf = normalize_path(path)?;
-    fs::write(&path_buf, content).map_err(|error| to_io_error("Save failed: ", error))?;
-    Ok(path_buf.to_string_lossy().to_string())
+    write_file(path, content, "Save failed: ")
 }
 
 #[tauri::command]
 pub fn save_file_as(path: String, content: String) -> FileCommandResult<String> {
+    write_file(path, content, "Save As failed: ")
+}
+
+fn write_file(path: String, content: String, action: &'static str) -> FileCommandResult<String> {
     let path_buf = normalize_path(path)?;
-    fs::write(&path_buf, content).map_err(|error| to_io_error("Save As failed: ", error))?;
+    fs::write(&path_buf, content).map_err(|error| to_io_error(action, error))?;
     Ok(path_buf.to_string_lossy().to_string())
 }
 

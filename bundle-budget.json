@@ -1,0 +1,11 @@
+{
+  "assets": [
+    { "pattern": "^logo-transparent-.*\\.png$", "maxBytes": 10240, "label": "brand logo" },
+    { "pattern": "^index-.*\\.js$", "maxBytes": 25000, "label": "app shell chunk" },
+    { "pattern": "^vendor-tauri-.*\\.js$", "maxBytes": 25000, "label": "tauri vendor chunk" },
+    { "pattern": "^vendor-markdown-.*\\.js$", "maxBytes": 45000, "label": "markdown vendor chunk" },
+    { "pattern": "^vendor-react-.*\\.js$", "maxBytes": 150000, "label": "react vendor chunk" },
+    { "pattern": "^vendor-misc-.*\\.js$", "maxBytes": 240000, "label": "misc vendor chunk" },
+    { "pattern": "^vendor-codemirror-.*\\.js$", "maxBytes": 270000, "label": "codemirror vendor chunk" }
+  ]
+}

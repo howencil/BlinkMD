@@ -24,6 +24,7 @@ export function EditorPane({ content, onContentChange, onCursorChange }: EditorP
   const viewRef = useRef<EditorView | null>(null);
   const onContentChangeRef = useRef(onContentChange);
   const onCursorChangeRef = useRef(onCursorChange);
+  const initialContentRef = useRef(content);
   const syncingExternalContentRef = useRef(false);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export function EditorPane({ content, onContentChange, onCursorChange }: EditorP
 
     const view = new EditorView({
       state: EditorState.create({
-        doc: content,
+        doc: initialContentRef.current,
         extensions: [
           markdown(),
           lineNumbers(),

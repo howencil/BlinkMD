@@ -63,6 +63,20 @@ describe("renderMarkdown", () => {
     expect(html).not.toContain("javascript:");
   });
 
+  it("removes mixed-case dangerous URLs", () => {
+    const md = '<a href="JaVaScRiPt:alert(1)">link</a>';
+    const html = renderMarkdown(md);
+    expect(html).not.toContain("JaVaScRiPt:");
+    expect(html).toContain(">link<");
+  });
+
+  it("removes dangerous data URLs from SVG-linked attributes", () => {
+    const md = '<svg><a xlink:href="data:text/html,<script>alert(1)</script>">x</a></svg>';
+    const html = renderMarkdown(md);
+    expect(html).not.toContain("data:text/html");
+    expect(html).not.toContain("<script");
+  });
+
   it("removes <iframe>, <object>, <embed> tags", () => {
     const md = '<iframe src="x"></iframe><object data="y"></object><embed src="z">';
     const html = renderMarkdown(md);
@@ -76,5 +90,25 @@ describe("renderMarkdown", () => {
     const html = renderMarkdown(md);
     expect(html).not.toContain("style=");
     expect(html).toContain("Styled");
+  });
+
+  it("removes style tags", () => {
+    const md = "<style>.bad { color: red; }</style><p>Safe</p>";
+    const html = renderMarkdown(md);
+    expect(html).not.toContain("<style");
+    expect(html).toContain("<p>Safe</p>");
+  });
+
+  it("preserves fenced code block semantics with surrounding blank lines", () => {
+    const md = "\n\n```ts\nconst answer = 42;\n```\n\n";
+    const html = renderMarkdown(md);
+    expect(html).toContain("<pre><code");
+    expect(html).toContain("const answer = 42;");
+  });
+
+  it("preserves leading indentation for indented code blocks", () => {
+    const md = "    const indented = true;";
+    const html = renderMarkdown(md);
+    expect(html).toContain("<pre><code>const indented = true;");
   });
 });

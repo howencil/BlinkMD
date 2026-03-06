@@ -10,7 +10,7 @@ Fast startup, low memory footprint, keyboard-driven workflow.
 
 - **Split / Edit / Preview modes** — side-by-side live preview with synchronized scrolling, or full-screen edit / preview toggle
 - **CodeMirror 6 editor** — Markdown syntax highlighting, line numbers, line wrapping
-- **Markdown rendering** — CommonMark + GFM (tables, task lists, fenced code blocks) via `marked`, with built-in XSS sanitization
+- **Markdown rendering** — CommonMark + GFM (tables, task lists, fenced code blocks) via `marked` + `DOMPurify`
 - **Native file I/O** — Open / Save / Save As through Tauri Rust commands and native file dialogs
 - **Drag-and-drop open (Tauri)** — drop `.md` / `.markdown` / `.txt` files onto the workspace to open, with unsaved-change confirmation
 - **Keyboard shortcuts** — `Cmd/Ctrl+O` open, `Cmd/Ctrl+S` save, `Cmd/Ctrl+Shift+S` save as, `Cmd/Ctrl+E` edit mode, `Cmd/Ctrl+R` preview mode, `Cmd/Ctrl+\` split mode
@@ -89,9 +89,14 @@ Then open the app normally.
 | `npm run dev` | Vite dev server (port 1420, frontend only) |
 | `npm run tauri dev` | Full desktop app in dev mode |
 | `npm run build` | TypeScript check + Vite build (frontend) |
+| `npm run lint` | Run ESLint guardrails for frontend and scripts |
+| `npm run size:check` | Enforce bundle-size budgets against `dist/assets` |
 | `npm run tauri build` | Production desktop bundles |
 | `npm run test` | Run frontend unit tests |
 | `npm run test:watch` | Run tests in watch mode |
+| `npm run verify:frontend` | Run lint, tests, build, and bundle budget checks |
+| `npm run measure:startup` | Measure cold startup time |
+| `npm run measure:memory` | Measure RSS over a short sampling window |
 
 Rust tests:
 
@@ -103,15 +108,17 @@ cd src-tauri && cargo test
 
 ```
 src/
-  app/          App.tsx, App.css (orchestrator, layout, state)
+  app/          App.tsx, App.css, hooks + shortcut command helpers
   editor/       EditorPane.tsx, editorTheme.ts (CodeMirror 6)
   preview/      PreviewPane.tsx (Markdown preview)
   services/     fileService.ts, renderService.ts
-  state/        documentStore.ts (types + initial state)
+  state/        documentStore.ts (document reducer + types)
 src-tauri/
   src/
     commands/   file.rs (open/save/save_as/exit_app), health.rs
     main.rs     Tauri app setup, global shortcuts
+
+See `PERFORMANCE-CHECKLIST.md` for the recommended startup/memory verification workflow.
 ```
 
 ## Keyboard Shortcuts

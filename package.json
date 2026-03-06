@@ -1,17 +1,20 @@
 {
   "name": "blinkmd",
   "private": true,
-  "version": "0.1.7",
+  "version": "0.1.8",
   "type": "module",
   "scripts": {
     "dev": "vite --port 1420",
     "build": "tsc && vite build",
+    "lint": "eslint .",
     "preview": "vite preview",
+    "size:check": "node scripts/check-bundle-size.mjs --dir dist",
     "tauri": "tauri",
     "measure:startup": "node scripts/measure-startup.mjs",
     "measure:memory": "node scripts/measure-memory.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify:frontend": "npm run lint && npm test && npm run build && npm run size:check"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.3.5",
@@ -20,19 +23,25 @@
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",
+    "dompurify": "^3.3.2",
     "marked": "^15.0.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.3",
     "@tauri-apps/cli": "^2.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.2",
+    "eslint": "^9.39.3",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.4.0",
     "jsdom": "^28.1.0",
     "typescript": "^5.6.2",
+    "typescript-eslint": "^8.56.1",
     "vite": "^5.4.8",
     "vitest": "^4.0.18"
   }

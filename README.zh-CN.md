@@ -10,7 +10,7 @@
 
 - **分屏 / 编辑 / 预览模式** — 左右分屏实时预览并同步滚动，也可切换为纯编辑或纯预览
 - **CodeMirror 6 编辑器** — Markdown 语法高亮、行号、自动换行
-- **Markdown 渲染** — 通过 `marked` 支持 CommonMark + GFM（表格、任务列表、围栏代码块），内置 XSS 净化
+- **Markdown 渲染** — 通过 `marked` + `DOMPurify` 支持 CommonMark + GFM（表格、任务列表、围栏代码块）与安全净化
 - **原生文件读写** — 通过 Tauri Rust 命令和原生文件对话框实现打开 / 保存 / 另存为
 - **拖放打开（Tauri）** — 将 `.md` / `.markdown` / `.txt` 文件拖到工作区即可打开，并复用未保存改动确认
 - **快捷键** — `Cmd/Ctrl+O` 打开、`Cmd/Ctrl+S` 保存、`Cmd/Ctrl+Shift+S` 另存为、`Cmd/Ctrl+E` 编辑模式、`Cmd/Ctrl+R` 预览模式、`Cmd/Ctrl+\` 分屏模式
@@ -89,9 +89,14 @@ xattr -cr /Applications/BlinkMD.app
 | `npm run dev` | 启动 Vite 开发服务器（端口 1420，仅前端） |
 | `npm run tauri dev` | 启动完整桌面应用（开发模式） |
 | `npm run build` | TypeScript 类型检查 + Vite 构建（仅前端） |
+| `npm run lint` | 运行前端与脚本的 ESLint 检查 |
+| `npm run size:check` | 对 `dist/assets` 执行 bundle 体积预算校验 |
 | `npm run tauri build` | 生产环境桌面应用打包 |
 | `npm run test` | 运行前端单元测试 |
 | `npm run test:watch` | 以 watch 模式运行测试 |
+| `npm run verify:frontend` | 一次执行 lint、测试、构建与体积预算校验 |
+| `npm run measure:startup` | 测量冷启动时间 |
+| `npm run measure:memory` | 测量 RSS 内存采样 |
 
 Rust 测试：
 
@@ -103,15 +108,17 @@ cd src-tauri && cargo test
 
 ```
 src/
-  app/          App.tsx, App.css（主编排器、布局、状态管理）
+  app/          App.tsx, App.css、hooks 与快捷键命令辅助模块
   editor/       EditorPane.tsx, editorTheme.ts（CodeMirror 6 编辑器）
   preview/      PreviewPane.tsx（Markdown 预览）
   services/     fileService.ts, renderService.ts（文件服务、渲染服务）
-  state/        documentStore.ts（类型定义与初始状态）
+  state/        documentStore.ts（document reducer 与类型定义）
 src-tauri/
   src/
     commands/   file.rs（open/save/save_as/exit_app）, health.rs
     main.rs     Tauri 应用启动、全局快捷键注册
+
+性能检查流程见 `PERFORMANCE-CHECKLIST.md`。
 ```
 
 ## 快捷键

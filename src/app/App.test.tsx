@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { openFile, openFileByPath } from "../services/fileService";
+import { openFile, openFileByPath, saveFile } from "../services/fileService";
 
 type DragDropPayload =
   | { type: "enter"; paths: string[]; position: { x: number; y: number } }
@@ -10,10 +10,12 @@ type DragDropPayload =
   | { type: "leave" };
 
 type DragDropHandler = (event: { payload: DragDropPayload }) => void;
+type TauriEventHandler = (event: { payload: unknown }) => void;
 
 const hoisted = vi.hoisted(() => ({
   dragDropHandlers: [] as DragDropHandler[],
-  askMock: vi.fn()
+  askMock: vi.fn(),
+  tauriEventHandlers: new Map<string, TauriEventHandler[]>()
 }));
 
 vi.mock("../services/fileService", async () => {
@@ -23,9 +25,32 @@ vi.mock("../services/fileService", async () => {
   return {
     ...actual,
     openFile: vi.fn(),
-    openFileByPath: vi.fn()
+    openFileByPath: vi.fn(),
+    saveFile: vi.fn()
   };
 });
+
+vi.mock("../editor/EditorPane", () => ({
+  EditorPane: ({
+    content,
+    onContentChange
+  }: {
+    content: string;
+    onContentChange: (content: string) => void;
+  }) => (
+    <div aria-label="markdown-editor">
+      <button type="button" onClick={() => onContentChange(`${content} edited`.trim())}>
+        Simulate Edit
+      </button>
+    </div>
+  )
+}));
+
+vi.mock("../preview/PreviewPane", () => ({
+  PreviewPane: ({ content }: { content: string }) => (
+    <section aria-label="markdown-preview">{content}</section>
+  )
+}));
 
 vi.mock("@tauri-apps/api/webview", () => ({
   getCurrentWebview: () => ({
@@ -46,7 +71,17 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
-  listen: async () => () => {}
+  listen: async (eventName: string, handler: TauriEventHandler) => {
+    const handlers = hoisted.tauriEventHandlers.get(eventName) ?? [];
+    handlers.push(handler);
+    hoisted.tauriEventHandlers.set(eventName, handlers);
+    return () => {
+      const nextHandlers = (hoisted.tauriEventHandlers.get(eventName) ?? []).filter(
+        (currentHandler) => currentHandler !== handler
+      );
+      hoisted.tauriEventHandlers.set(eventName, nextHandlers);
+    };
+  }
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
@@ -72,6 +107,12 @@ function emitDragDrop(payload: DragDropPayload) {
   }
 }
 
+function emitTauriEvent(eventName: string, payload: unknown) {
+  for (const handler of hoisted.tauriEventHandlers.get(eventName) ?? []) {
+    handler({ payload });
+  }
+}
+
 function mockWorkspaceRect() {
   const workspace = screen.getByRole("main");
   vi.spyOn(workspace, "getBoundingClientRect").mockReturnValue({
@@ -90,6 +131,7 @@ function mockWorkspaceRect() {
 describe("App", () => {
   const mockedOpenFile = vi.mocked(openFile);
   const mockedOpenFileByPath = vi.mocked(openFileByPath);
+  const mockedSaveFile = vi.mocked(saveFile);
 
   afterEach(() => {
     cleanup();
@@ -100,8 +142,10 @@ describe("App", () => {
   beforeEach(() => {
     mockedOpenFile.mockReset();
     mockedOpenFileByPath.mockReset();
+    mockedSaveFile.mockReset();
     hoisted.askMock.mockReset();
     hoisted.dragDropHandlers.length = 0;
+    hoisted.tauriEventHandlers.clear();
     disableTauriRuntime();
   });
 
@@ -130,6 +174,35 @@ describe("App", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("markdown-preview")).toBeTruthy();
       expect(screen.queryByLabelText("markdown-editor")).toBeNull();
+    });
+  });
+
+  it("marks the document dirty after editing and clears it after save", async () => {
+    mockedSaveFile.mockResolvedValue("/tmp/saved.md");
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Simulate Edit" }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Dirty ● Unsaved")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mockedSaveFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: "edited",
+          isDirty: true,
+          path: null
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Dirty ○ Saved")).toBeTruthy();
+      expect(screen.getByText("Saved.")).toBeTruthy();
+      expect(screen.getByText("saved.md")).toBeTruthy();
     });
   });
 
@@ -208,5 +281,27 @@ describe("App", () => {
       expect(screen.getByText("Drop ignored: only .md/.markdown/.txt are supported.")).toBeTruthy();
     });
     expect(mockedOpenFileByPath).not.toHaveBeenCalled();
+  });
+
+  it("switches modes from a single tauri shortcut event payload", async () => {
+    enableTauriRuntime();
+    render(<App />);
+
+    await waitFor(() => {
+      expect(hoisted.tauriEventHandlers.get("blinkmd://shortcut")?.length).toBe(1);
+    });
+
+    emitTauriEvent("blinkmd://shortcut", "preview");
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("markdown-preview")).toBeTruthy();
+      expect(screen.queryByLabelText("markdown-editor")).toBeNull();
+    });
+
+    emitTauriEvent("blinkmd://shortcut", "edit");
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("markdown-editor")).toBeTruthy();
+    });
   });
 });

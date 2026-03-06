@@ -7,6 +7,15 @@ use tauri::Emitter;
 #[cfg(desktop)]
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
+#[cfg(desktop)]
+const TAURI_SHORTCUT_EVENT: &str = "blinkmd://shortcut";
+#[cfg(desktop)]
+const SHORTCUT_COMMAND_EDIT: &str = "edit";
+#[cfg(desktop)]
+const SHORTCUT_COMMAND_PREVIEW: &str = "preview";
+#[cfg(desktop)]
+const SHORTCUT_COMMAND_SPLIT: &str = "split";
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -39,11 +48,11 @@ fn main() {
                             }
 
                             if shortcut == &edit_shortcut_for_handler {
-                                let _ = app.emit("blinkmd://shortcut-edit-mode", ());
+                                let _ = app.emit(TAURI_SHORTCUT_EVENT, SHORTCUT_COMMAND_EDIT);
                             } else if shortcut == &preview_shortcut_for_handler {
-                                let _ = app.emit("blinkmd://shortcut-preview-mode", ());
+                                let _ = app.emit(TAURI_SHORTCUT_EVENT, SHORTCUT_COMMAND_PREVIEW);
                             } else if shortcut == &split_shortcut_for_handler {
-                                let _ = app.emit("blinkmd://shortcut-split-mode", ());
+                                let _ = app.emit(TAURI_SHORTCUT_EVENT, SHORTCUT_COMMAND_SPLIT);
                             }
                         })
                         .build(),
