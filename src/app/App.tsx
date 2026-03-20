@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { EditorPane } from "../editor/EditorPane";
 import { PreviewPane } from "../preview/PreviewPane";
 import { type ViewMode } from "../state/documentStore";
+import { getDisplayName } from "../services/fileService";
 import brandLogo from "../assets/logo-transparent.png";
 import { useCloseGuard } from "./useCloseGuard";
 import { useDocumentSession } from "./useDocumentSession";
@@ -26,14 +27,6 @@ function countWords(content: string): number {
     .reduce((count, token) => count + (LATIN_CHAR_REGEX.test(token) ? 1 : 0), 0);
 
   return cjkCharCount + latinWordCount;
-}
-
-function getFileName(path: string | null): string {
-  if (!path) {
-    return "Untitled.md";
-  }
-  const parts = path.split(/[\\/]/);
-  return parts[parts.length - 1] || "Untitled.md";
 }
 
 export function App() {
@@ -193,7 +186,7 @@ export function App() {
         >
           {dirtyStatusText}
         </span>
-        <span>{getFileName(documentState.path)}</span>
+        <span>{getDisplayName(documentState.path)}</span>
         <span>Words {wordCount}</span>
         {isLargeDocument ? <span>Large File Mode</span> : null}
         <span>

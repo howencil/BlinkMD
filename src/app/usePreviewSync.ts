@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { ViewMode } from "../state/documentStore";
 
 const PREVIEW_DEBOUNCE_MS = 120;
 const LARGE_FILE_PREVIEW_DEBOUNCE_MS = 420;
 const LARGE_FILE_THRESHOLD_BYTES = 1024 * 1024;
 
+// 单例 TextEncoder，避免每次调用时重新分配
+const textEncoder = new TextEncoder();
+
 function getUtf8SizeInBytes(content: string): number {
-  return new TextEncoder().encode(content).length;
+  return textEncoder.encode(content).length;
 }
 
 type UsePreviewSyncInput = {
@@ -27,21 +30,28 @@ export function usePreviewSync({
   workspaceRef
 }: UsePreviewSyncInput): UsePreviewSyncResult {
   const [previewContent, setPreviewContent] = useState("");
-  const latestContentRef = useRef(content);
+  // 用于跟踪是否刚刚通过 refreshPreview 设置了即时内容
+  const immediateContentRef = useRef<string | null>(null);
 
   const contentSizeBytes = useMemo(() => getUtf8SizeInBytes(content), [content]);
   const isLargeDocument = contentSizeBytes > LARGE_FILE_THRESHOLD_BYTES;
   const previewDebounceMs = isLargeDocument ? LARGE_FILE_PREVIEW_DEBOUNCE_MS : PREVIEW_DEBOUNCE_MS;
 
-  useEffect(() => {
-    latestContentRef.current = content;
-  }, [content]);
+  // 立即刷新预览内容（绕过 debounce），用于打开文件等场景
+  // 如果不传参数，则使用当前 content
+  function refreshPreview(nextContent?: string) {
+    const effectiveContent = nextContent ?? content;
+    immediateContentRef.current = effectiveContent;
+    setPreviewContent(effectiveContent);
+  }
 
-  const refreshPreview = useCallback((nextContent?: string) => {
-    setPreviewContent(nextContent ?? latestContentRef.current);
-  }, []);
-
   useEffect(() => {
+    // 如果刚刚通过 refreshPreview 设置了即时内容，跳过这次 debounce 更新
+    if (immediateContentRef.current === content) {
+      immediateContentRef.current = null;
+      return;
+    }
+
     const timer = window.setTimeout(() => {
       setPreviewContent(content);
     }, previewDebounceMs);

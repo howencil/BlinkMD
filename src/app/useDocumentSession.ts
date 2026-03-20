@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useState } from "react";
+import { useCallback, useReducer, useRef, useState } from "react";
 import {
   applyDocumentAction,
   getInitialDocumentState,
@@ -12,6 +12,12 @@ import {
   saveFile,
   saveFileAs
 } from "../services/fileService";
+
+type SaveMessages = {
+  success: string;
+  cancelled: string;
+  failed: string;
+};
 
 type UseDocumentSessionInput = {
   isTauriRuntime: boolean;
@@ -39,6 +45,9 @@ export function useDocumentSession({
   const [documentState, dispatch] = useReducer(applyDocumentAction, undefined, getInitialDocumentState);
   const [statusMessage, setStatusMessage] = useState("Ready");
   const [isBusy, setIsBusy] = useState(false);
+  // 使用 ref 跟踪最新 documentState，避免 onSave/onSaveAs 频繁重建
+  const documentStateRef = useRef(documentState);
+  documentStateRef.current = documentState;
 
   const reportOpenError = useCallback((error: unknown) => {
     if (error instanceof FileOperationCancelledError) {
@@ -130,57 +139,58 @@ export function useDocumentSession({
     [applyOpenedDocument, confirmOpenWhenDirty, isBusy, reportOpenError]
   );
 
-  const onSave = useCallback(async (): Promise<boolean> => {
-    setIsBusy(true);
-    try {
-      const savedPath = await saveFile(documentState);
-      dispatch({
-        type: "documentSaved",
-        path: savedPath
-      });
-      setStatusMessage("Saved.");
-      return true;
-    } catch (error) {
-      if (error instanceof FileOperationCancelledError) {
-        setStatusMessage("Save cancelled.");
+  // 通用保存操作辅助函数
+  const performSave = useCallback(
+    async (
+      operation: (doc: DocumentModel) => Promise<string>,
+      messages: SaveMessages
+    ): Promise<boolean> => {
+      setIsBusy(true);
+      try {
+        const savedPath = await operation(documentStateRef.current);
+        dispatch({
+          type: "documentSaved",
+          path: savedPath
+        });
+        setStatusMessage(messages.success);
+        return true;
+      } catch (error) {
+        if (error instanceof FileOperationCancelledError) {
+          setStatusMessage(messages.cancelled);
+          return false;
+        }
+        if (error instanceof FileOperationError) {
+          setStatusMessage(error.message);
+          return false;
+        }
+        setStatusMessage(messages.failed);
         return false;
+      } finally {
+        setIsBusy(false);
       }
-      if (error instanceof FileOperationError) {
-        setStatusMessage(error.message);
-        return false;
-      }
-      setStatusMessage("Save failed.");
-      return false;
-    } finally {
-      setIsBusy(false);
-    }
-  }, [documentState]);
+    },
+    [dispatch, setStatusMessage]
+  );
 
-  const onSaveAs = useCallback(async (): Promise<boolean> => {
-    setIsBusy(true);
-    try {
-      const savedPath = await saveFileAs(documentState);
-      dispatch({
-        type: "documentSaved",
-        path: savedPath
-      });
-      setStatusMessage("Saved as new file.");
-      return true;
-    } catch (error) {
-      if (error instanceof FileOperationCancelledError) {
-        setStatusMessage("Save As cancelled.");
-        return false;
-      }
-      if (error instanceof FileOperationError) {
-        setStatusMessage(error.message);
-        return false;
-      }
-      setStatusMessage("Save As failed.");
-      return false;
-    } finally {
-      setIsBusy(false);
-    }
-  }, [documentState]);
+  const onSave = useCallback(
+    () =>
+      performSave(saveFile, {
+        success: "Saved.",
+        cancelled: "Save cancelled.",
+        failed: "Save failed."
+      }),
+    [performSave]
+  );
+
+  const onSaveAs = useCallback(
+    () =>
+      performSave(saveFileAs, {
+        success: "Saved as new file.",
+        cancelled: "Save As cancelled.",
+        failed: "Save As failed."
+      }),
+    [performSave]
+  );
 
   const onContentChange = useCallback((content: string) => {
     dispatch({

@@ -34,26 +34,32 @@ function formatBytes(bytes) {
 }
 
 function loadBudget(manifestPath) {
-  if (!fs.existsSync(manifestPath)) {
-    throw new Error(`Bundle budget manifest not found: ${manifestPath}`);
+  try {
+    return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error(`Bundle budget manifest not found: ${manifestPath}`);
+    }
+    throw error;
   }
-
-  return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 }
 
 function collectAssetSizes(assetsDir) {
-  if (!fs.existsSync(assetsDir)) {
-    throw new Error(`Assets directory not found: ${assetsDir}`);
+  try {
+    return fs.readdirSync(assetsDir).map((fileName) => {
+      const filePath = path.join(assetsDir, fileName);
+      const stats = fs.statSync(filePath);
+      return {
+        fileName,
+        bytes: stats.size
+      };
+    });
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      throw new Error(`Assets directory not found: ${assetsDir}`);
+    }
+    throw error;
   }
-
-  return fs.readdirSync(assetsDir).map((fileName) => {
-    const filePath = path.join(assetsDir, fileName);
-    const stats = fs.statSync(filePath);
-    return {
-      fileName,
-      bytes: stats.size
-    };
-  });
 }
 
 function evaluateBudgets(assetSizes, budgetConfig) {
